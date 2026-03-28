@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import API from "../api/api";
 import { FaSun, FaDatabase, FaCloudUploadAlt } from "react-icons/fa";
 import Loading from "../components/Loading";
+import {PieChart,Pie,Cell,Tooltip,Legend} from "recharts";
 
 function Dashboard() {
 
@@ -10,18 +11,22 @@ function Dashboard() {
 
     const [darkMode, setDarkMode] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [dragActive, setDragActive] = useState(false);
+    const [fileStats, setFileStats] = useState([]);
+
+    const COLORS = ["#00ADB5", "#FF6B6B", "#4ECDC4", "#FFD93D"];
 
     const [usage, setUsage] = useState({
         storageUsed: 0,
         files: 0,
-        plan: "Free"
+        plan: "Basic"
     });
 
     const [file, setFile] = useState(null);
 
     const token = localStorage.getItem("token");
 
-    const MAX_STORAGE = 5120; // 5GB free plan
+    const MAX_STORAGE = 5; // 5GB free plan
 
 
     const toggleMode = () => {
@@ -49,8 +54,12 @@ function Dashboard() {
             setUsage({
                 storageUsed: parseFloat(data.storageUsed) || 0,
                 files: parseInt(data.files) || 0,
-                plan: data.plan || "Free"
+                plan: data.plan || "Basic"
             });
+
+            if (data.fileStats && data.fileStats.length > 0) {
+                setFileStats(data.fileStats);
+            }
 
         } catch (err) {
 
@@ -122,7 +131,32 @@ function Dashboard() {
     };
 
 
-    const usagePercent = Math.min((Number(usage.storageUsed) / MAX_STORAGE) * 100, 100);
+    const handleDrag = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (e.type === "dragenter" || e.type === "dragover") {
+            setDragActive(true);
+        } else if (e.type === "dragleave") {
+            setDragActive(false);
+        }
+    };
+
+    const handleDrop = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragActive(false);
+
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+            setFile(e.dataTransfer.files[0]);
+        }
+    };
+
+
+    const usagePercent = Math.min(
+        ((usage.storageUsed / 1024) / MAX_STORAGE) * 100,
+        100
+    );
 
 
     const cardStyle = darkMode
@@ -160,6 +194,13 @@ function Dashboard() {
                 </div>
 
                 <nav className="flex flex-col gap-3">
+
+                    <button
+                        onClick={() => navigate("/Profile")}
+                        className="p-3 rounded-lg text-left hover:bg-[#00ADB5] hover:text-white transition transform hover:scale-105"
+                    >
+                        Profile
+                    </button>
 
                     <button
                         onClick={() => navigate("/dashboard")}
@@ -261,7 +302,6 @@ function Dashboard() {
 
 
                 {/* ================= UPLOAD ================= */}
-
                 <div className={`${cardStyle} p-6 rounded-xl shadow-lg mb-8`}>
 
                     <h2 className="text-xl mb-4 flex items-center gap-2">
@@ -269,7 +309,18 @@ function Dashboard() {
                         Upload File
                     </h2>
 
-                    <div className="flex items-center gap-4">
+                    <div
+                        onDragEnter={handleDrag}
+                        onDragLeave={handleDrag}
+                        onDragOver={handleDrag}
+                        onDrop={handleDrop}
+                        className={`border-2 border-dashed p-10 text-center rounded-xl 
+        ${dragActive ? "border-[#00ADB5] bg-gray-200" : "border-gray-400"}`}
+                    >
+
+                        <p className="mb-3">
+                            Drag & Drop file here
+                        </p>
 
                         <label className="bg-[#00ADB5] text-white px-5 py-2 rounded-lg cursor-pointer">
                             Choose File
@@ -281,14 +332,14 @@ function Dashboard() {
                         </label>
 
                         {file && (
-                            <p className="text-sm text-gray-300">
+                            <p className="mt-3 text-sm">
                                 Selected: {file.name}
                             </p>
                         )}
 
                         <button
                             onClick={handleUpload}
-                            className="bg-green-500 hover:bg-green-600 px-6 py-2 rounded-lg text-white"
+                            className="ml-4 bg-green-500 hover:bg-green-600 px-6 py-2 rounded-lg text-white"
                         >
                             Upload
                         </button>
@@ -296,7 +347,6 @@ function Dashboard() {
                     </div>
 
                 </div>
-
 
 
                 {/* ================= STORAGE BAR ================= */}
@@ -317,8 +367,44 @@ function Dashboard() {
                     </div>
 
                     <p className="mt-3 text-sm">
-                        {usage.storageUsed} GB / {MAX_STORAGE} GB
+                        {(usage.storageUsed / 1024).toFixed(2)} GB / {MAX_STORAGE} GB
                     </p>
+
+                </div>
+
+
+
+
+                {/* ================= PIE CHARTS ================= */}
+
+                <div className={`${cardStyle} p-6 rounded-xl shadow-lg mb-10`}>
+
+                    <h2 className="text-lg mb-4">
+                        Storage Breakdown
+                    </h2>
+
+                    <div className="flex justify-center">
+
+                        <PieChart width={500} height={300}>
+                            <Pie
+                                data={fileStats}
+                                dataKey="value"
+                                nameKey="name"
+                                cx="50%"
+                                cy="50%"
+                                outerRadius={120}
+                                fill="#00ADB5"
+                                label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+                            >
+                                {fileStats.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                ))}
+                            </Pie>
+                            <Tooltip />
+                            <Legend />
+                        </PieChart>
+
+                    </div>
 
                 </div>
 
