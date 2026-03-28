@@ -6,6 +6,7 @@ import Dashboard from "./pages/dashboard";
 import Files from "./pages/File";
 import Billing from "./pages/Billing";
 import ProtectedRoute from "./components/ProtectedRoute";
+import Profile from "./pages/Profile";
 
 function App() {
 
@@ -13,7 +14,12 @@ function App() {
 
     <BrowserRouter>
 
+
+      
+
       <Routes>
+
+        
 
         {/* Public Routes */}
         <Route path="/" element={<Login />} />
@@ -46,6 +52,10 @@ function App() {
             </ProtectedRoute>
           }
         />
+
+        {/*Profile*/}
+
+        <Route path="/profile" element={<Profile />} />
 
       </Routes>
 
