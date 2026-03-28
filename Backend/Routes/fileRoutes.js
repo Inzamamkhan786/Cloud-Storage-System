@@ -18,6 +18,10 @@ router.post("/upload", authMiddleware, upload.single("file"), fileController.upl
 
 router.get("/download/:id", authMiddleware, fileController.downloadFile);
 
+router.delete("/delete-duplicates", authMiddleware, fileController.deleteDuplicates);
+
 router.delete("/:id", authMiddleware, fileController.deleteFile);
+
+router.get("/duplicates", authMiddleware, fileController.getDuplicates);
 
 module.exports = router;
