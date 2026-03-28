@@ -110,7 +110,6 @@ exports.getBillingDetails = async (req, res) => {
 
 
 
-
 exports.getUsage = async (req, res) => {
   try {
 
@@ -132,16 +131,57 @@ exports.getUsage = async (req, res) => {
       [userId]
     );
 
+    // get file types
+    const fileTypes = await pool.query(
+      `SELECT file_name, size_bytes
+       FROM objects
+       WHERE user_id=$1 AND is_deleted=false`,
+      [userId]
+    );
+
+    let images = 0;
+    let videos = 0;
+    let docs = 0;
+    let others = 0;
+
+    fileTypes.rows.forEach(file => {
+
+      const name = file.file_name.toLowerCase();
+
+      if (name.match(/\.(jpg|jpeg|png|gif|webp)$/)) {
+        images += Number(file.size_bytes);
+      }
+      else if (name.match(/\.(mp4|mov|avi|mkv)$/)) {
+        videos += Number(file.size_bytes);
+      }
+      else if (name.match(/\.(pdf|doc|docx|txt|ppt|pptx|xls|xlsx)$/)) {
+        docs += Number(file.size_bytes);
+      }
+      else {
+        others += Number(file.size_bytes);
+      }
+
+    });
+
+    const total = images + videos + docs + others || 1;
+
+    const fileStats = [
+      { name: "Images", value: Math.round((images / total) * 100) },
+      { name: "Videos", value: Math.round((videos / total) * 100) },
+      { name: "Docs", value: Math.round((docs / total) * 100) },
+      { name: "Others", value: Math.round((others / total) * 100) }
+    ];
+
     const storageBytes = Number(storage.rows[0].total_storage);
 
-// convert to MB instead of GB
-const storageMB = storageBytes / (1024 * 1024);
+    const storageMB = storageBytes / (1024 * 1024);
 
-res.json({
-  storageUsed: Number(storageMB.toFixed(2)),
-  files: Number(files.rows[0].total_files),
-  plan: "Free"
-});
+    res.json({
+      storageUsed: Number(storageMB.toFixed(2)),
+      files: Number(files.rows[0].total_files),
+      plan: "Basic",
+      fileStats
+    });
 
   } catch (error) {
     res.status(500).json({
