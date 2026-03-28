@@ -89,6 +89,13 @@ function Billing() {
                 <nav className="flex flex-col gap-3">
 
                     <button
+                        onClick={() => navigate("/Profile")}
+                        className="p-3 rounded-lg text-left hover:bg-[#00ADB5] hover:text-white transition transform hover:scale-105"
+                    >
+                        Profile
+                    </button>
+
+                    <button
                         onClick={() => navigate("/dashboard")}
                         className="p-3 rounded-lg text-left hover:bg-[#00ADB5] hover:text-white transition transform hover:scale-105"
                     >
