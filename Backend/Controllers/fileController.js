@@ -1,6 +1,7 @@
 const pool = require("../Models/db");
 const path = require("path");
 const fs = require("fs");
+const UPLOAD_DIR = path.join(process.cwd(), "Uploads");
 
 const MAX_STORAGE_BYTES = 5 * 1024 * 1024 * 1024; // 5GB
 exports.uploadFile = async (req, res) => {
@@ -35,11 +36,19 @@ exports.uploadFile = async (req, res) => {
 
     if (currentStorage + sizeBytes > MAX_STORAGE_BYTES) {
 
-      return res.status(400).json({
-        message: "Storage limit exceeded. Upgrade your plan."
-      });
+  // remove uploaded file
+  const fileLocation = path.join(__dirname, "..", "uploads", filePath);
 
-    }
+  if (fs.existsSync(fileLocation)) {
+    fs.unlinkSync(fileLocation);
+  }
+
+  return res.status(400).json({
+    message: "Storage full (5GB limit). Upgrade your plan."
+  });
+
+
+}
 
     // ===============================
     // INSERT FILE
@@ -170,5 +179,118 @@ exports.deleteFile = async (req, res) => {
     res.status(500).json({
       error: error.message
     });
+  }
+};
+
+
+
+
+
+exports.getDuplicates = async (req, res) => {
+  try {
+
+    const userId = req.user.userId;
+
+    const duplicates = await pool.query(
+      `SELECT file_name, COUNT(*) 
+       FROM objects
+       WHERE user_id=$1 AND is_deleted=false
+       GROUP BY file_name
+       HAVING COUNT(*) > 1`,
+      [userId]
+    );
+
+    res.json({
+      hasDuplicates: duplicates.rows.length > 0,
+      duplicates: duplicates.rows
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      error: error.message
+    });
+  }
+};
+
+
+
+
+exports.deleteDuplicates = async (req, res) => {
+  try {
+
+    console.log("DELETE DUPLICATES CALLED");
+
+    const userId = req.user.userId;
+
+    console.log("User ID:", userId);
+
+    const duplicates = await pool.query(
+      `SELECT file_name
+       FROM objects
+       WHERE user_id=$1 AND is_deleted=false
+       GROUP BY file_name
+       HAVING COUNT(*) > 1`,
+      [userId]
+    );
+
+    console.log("Duplicates:", duplicates.rows);
+
+    for (const row of duplicates.rows) {
+
+      const files = await pool.query(
+        `SELECT id, file_path
+         FROM objects
+         WHERE user_id=$1 
+         AND file_name=$2
+         AND is_deleted=false
+         ORDER BY id`,
+        [userId, row.file_name]
+      );
+
+      console.log("Files:", files.rows);
+
+      const duplicateFiles = files.rows.slice(1);
+
+      for (const file of duplicateFiles) {
+
+        console.log("Deleting:", file);
+
+        const fileLocation = path.join(
+          __dirname,
+          "..",
+          "Uploads",
+          file.file_path
+        );
+
+        console.log("Path:", fileLocation);
+
+        if (fs.existsSync(fileLocation)) {
+          fs.unlinkSync(fileLocation);
+        }
+
+        await pool.query(
+          `UPDATE objects 
+           SET is_deleted=true 
+           WHERE id=$1`,
+          [file.id]
+        );
+
+      }
+
+    }
+
+    res.json({
+      message: "Duplicates deleted successfully"
+    });
+
+  } catch (error) {
+
+    console.log("DELETE DUPLICATES ERROR:");
+    console.error(error);
+
+    res.status(500).json({
+      error: error.message
+    });
+
   }
 };
