@@ -11,6 +11,7 @@ function Files() {
     const [darkMode, setDarkMode] = useState(false);
     const [files, setFiles] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [hasDuplicates, setHasDuplicates] = useState(false);
 
     const token = localStorage.getItem("token");
 
@@ -24,6 +25,7 @@ function Files() {
         }
 
         fetchFiles(); // or fetchBilling()
+        checkDuplicates();
 
         setTimeout(() => {
             setLoading(false);
@@ -66,7 +68,6 @@ function Files() {
                 }
             });
 
-            fetchUsage();
 
             fetchFiles();
 
@@ -118,6 +119,50 @@ function Files() {
 
     };
 
+
+    const checkDuplicates = async () => {
+
+        try {
+
+            const res = await API.get("/files/duplicates", {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+
+            setHasDuplicates(res.data.hasDuplicates);
+
+        } catch (error) {
+            console.log(error);
+        }
+
+    };
+
+    
+    const deleteDuplicates = async () => {
+
+        console.log("Delete clicked");
+
+        try {
+
+            const res = await API.delete("/files/delete-duplicates");
+
+            console.log(res.data);
+
+            alert("Duplicates deleted successfully");
+
+            fetchFiles();
+            checkDuplicates();
+
+        } catch (error) {
+
+            console.log("DELETE ERROR:", error);
+
+        }
+
+    };
+
+
     if(loading){
         return <Loading />;
     }
@@ -145,6 +190,13 @@ function Files() {
                 </div>
 
                 <nav className="flex flex-col gap-3">
+
+                    <button
+                        onClick={() => navigate("/Profile")}
+                        className="p-3 rounded-lg text-left hover:bg-[#00ADB5] hover:text-white transition transform hover:scale-105"
+                    >
+                        Profile
+                    </button>
 
                     <button
                         onClick={() => navigate("/dashboard")}
@@ -185,7 +237,24 @@ function Files() {
 
             {/* Main Content */}
 
+           
+
             <div className="flex-1 p-10">
+
+                {hasDuplicates && (
+                    <div className="bg-yellow-400 text-black p-4 rounded-lg mb-6 shadow-md">
+                        ⚠ Duplicate files detected — Delete to save storage
+
+                        <button
+                            onClick={deleteDuplicates}
+                            className="ml-4 bg-red-500 px-4 py-2 rounded-lg"
+                        >
+                            Delete All
+                        </button>
+
+                    </div>
+                )}
+
 
                 <h1 className="text-3xl font-bold mb-8">
                     Uploaded Files
