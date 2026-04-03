@@ -1,0 +1,67 @@
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+
+import Login from "./pages/login";
+import Signup from "./pages/Signup";
+import Dashboard from "./pages/dashboard";
+import Files from "./pages/File";
+import Billing from "./pages/Billing";
+import ProtectedRoute from "./components/ProtectedRoute";
+import Profile from "./pages/Profile";
+
+function App() {
+
+  return (
+
+    <BrowserRouter>
+
+
+      
+
+      <Routes>
+
+        
+
+        {/* Public Routes */}
+        <Route path="/" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+
+        {/* Protected Routes */}
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/files"
+          element={
+            <ProtectedRoute>
+              <Files />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/billing"
+          element={
+            <ProtectedRoute>
+              <Billing />
+            </ProtectedRoute>
+          }
+        />
+
+        {/*Profile*/}
+
+        <Route path="/profile" element={<Profile />} />
+
+      </Routes>
+
+    </BrowserRouter>
+
+  );
+}
+
+export default App;
