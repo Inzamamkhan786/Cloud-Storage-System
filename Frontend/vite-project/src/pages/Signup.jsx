@@ -12,6 +12,19 @@ function Signup() {
 
     const handleSignup = async () => {
 
+        // Allow only gmail.com or .ac.in emails
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@(gmail\.com|.+\.ac\.in)$/;
+
+        if (!emailRegex.test(email)) {
+            alert("Please enter email in @gmail.com or .ac.in format");
+            return;
+        }
+
+        if (!name || !email || !password) {
+            alert("Please fill all fields");
+            return;
+        }
+
         try {
 
             await API.post("/auth/signup", {
