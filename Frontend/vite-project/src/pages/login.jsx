@@ -11,6 +11,14 @@ function Login() {
 
     const handleLogin = async () => {
 
+        // Email validation for gmail.com OR ac.in
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@(gmail\.com|.+\.ac\.in)$/;
+
+        if (!emailRegex.test(email)) {
+            alert("Please enter email in @gmail.com or .ac.in format");
+            return;
+        }
+
         try {
 
             const res = await API.post("/auth/login", {
