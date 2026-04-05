@@ -330,7 +330,7 @@ function Files() {
 
                                         <td className="py-4 flex items-center gap-3">
 
-                                            <FaFileAlt className="text-[#00ADB5]" />
+                                            <FaFileAlt className="text-[#00959d]" />
 
                                             {file.file_name}
 
@@ -346,7 +346,7 @@ function Files() {
 
                                             <button
                                                 onClick={() => downloadFile(file.id, file.file_name)}
-                                                className="flex items-center gap-2 bg-[#00ADB5] hover:bg-[#019aa1] px-4 py-2 rounded-lg transition"
+                                                className="flex items-center gap-2 bg-[#00959d] hover:bg-[#019aa1] px-4 py-2 rounded-lg transition"
                                             >
                                                 <FaDownload />
                                                 Download
