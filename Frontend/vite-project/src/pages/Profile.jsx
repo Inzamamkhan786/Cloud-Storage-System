@@ -2,12 +2,14 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../api/api";
 import { FaUser, FaEnvelope, FaDatabase, FaSun } from "react-icons/fa";
+import { PieChart, Pie, Cell, Tooltip, Legend } from "recharts";
 
 function Profile() {
 
     const navigate = useNavigate();
 
     const [darkMode, setDarkMode] = useState(false);
+    const [fileStats, setFileStats] = useState([]);
 
     const [user, setUser] = useState({
         name: "",
@@ -15,19 +17,94 @@ function Profile() {
         plan: "Basic"
     });
 
+    const [usage, setUsage] = useState({
+        storageUsed: 0,
+        files: 0,
+        plan: "Basic"
+    });
+
+    const token = localStorage.getItem("token");
+
+    const MAX_STORAGE = 5; // 5GB (Basic plan)
+
+    const COLORS = ["#00ADB5", "#FF6B6B", "#FFD93D", "#6BCB77"];
+
     const toggleMode = () => {
         setDarkMode(!darkMode);
     };
 
+    const fetchUsage = async () => {
+
+        try {
+
+            const res = await API.get("/billing/usage", {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+
+            console.log("Usage response:", res.data);
+
+            const data = res.data;
+
+            setUsage({
+                storageUsed: parseFloat(data.storageUsed) || 0,
+                files: parseInt(data.files) || 0,
+                plan: data.plan || "Basic"
+            });
+
+        } catch (err) {
+
+            console.log("Usage fetch error:", err);
+
+        }
+
+
+
+
+
+        try {
+
+            const res = await API.get("/billing/usage-num", {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+
+            const data = res.data;
+
+            setFileStats(data.fileStats);
+
+        } catch (err) {
+
+            console.log("Usage fetch error:", err);
+
+        }
+
+    };
+
+
+
     useEffect(() => {
         fetchProfile();
+
+
+        fetchUsage();
+
+
     }, []);
+
+
 
     const fetchProfile = async () => {
 
         try {
 
-            const res = await API.get("/user/profile");
+            const res = await API.get("/user/profile", {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
 
             console.log(res.data);
 
@@ -38,6 +115,11 @@ function Profile() {
         }
 
     };
+
+    // const usagePercent = Math.min(
+    //     ((usage.storageUsed / 1024) / MAX_STORAGE) * 100,
+    //     100
+    // );
 
     const cardStyle = darkMode
         ? "bg-[#393E46] text-white"
@@ -173,6 +255,66 @@ function Profile() {
                             </p>
                         </div>
 
+                    </div>
+
+                </div>
+
+
+                
+                                {/* ================= PIE CHARTS ================= */}
+                
+                                <div className={`${cardStyle} p-6 rounded-xl shadow-lg mb-10 mt-10`}>
+                
+                                    <h2 className="text-lg mb-4">
+                                        Storage Breakdown
+                                    </h2>
+                
+                                    <div className="flex justify-center">
+                
+                                        <PieChart width={500} height={300}>
+                                            <Pie
+                                                data={fileStats}
+                                                dataKey="value"
+                                                nameKey="name"
+                                                cx="50%"
+                                                cy="50%"
+                                                outerRadius={120}
+                                                fill="#00ADB5"
+                                                label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+                                            >
+                                                {fileStats.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip />
+                                            <Legend />
+                                        </PieChart>
+                
+                                    </div>
+                
+                             </div>
+
+
+                <div className="grid md:grid-cols-4 gap-4 mb-8">
+
+                    <div className={`${cardStyle} p-4 rounded-xl shadow-lg`}>
+                        <h3>Photos</h3>
+                        <p>{fileStats.find(f => f.name === "Images")?.value || 0}</p>
+                    </div>
+
+                    <div className={`${cardStyle} p-4 rounded-xl shadow-lg`}>
+                        <h3>Videos</h3>
+                        <p>{fileStats.find(f => f.name === "Videos")?.value || 0}</p>
+                    </div>
+
+                    <div className={`${cardStyle} p-4 rounded-xl shadow-lg`}>
+                        <h3>PDF</h3>
+                        <p>{fileStats.find(f => f.name === "Docs")?.value || 0}</p>
+                    </div>
+
+                    <div className={`${cardStyle} p-4 rounded-xl shadow-lg`}>
+                        <h3>Others</h3>
+                        <p>{fileStats.find(f => f.name === "Others")?.value || 0}</p>
                     </div>
 
                 </div>
