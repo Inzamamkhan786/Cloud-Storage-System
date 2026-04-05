@@ -57,15 +57,27 @@ function Dashboard() {
                 plan: data.plan || "Basic"
             });
 
-            if (data.fileStats && data.fileStats.length > 0) {
-                setFileStats(data.fileStats);
-            }
+            
 
         } catch (err) {
 
             console.log("Usage fetch error:", err);
 
         }
+
+
+
+        
+        const res = await API.get("/billing/usage-num", {
+            headers: {
+                Authorization: `Bearer ${token}`
+            }
+        });
+
+        const data = res.data;
+
+        setFileStats(data.fileStats);
+        
 
     };
 
@@ -205,7 +217,7 @@ function Dashboard() {
                     <button
                         onClick={() => navigate("/dashboard")}
                         className={`p-3 rounded-lg text-left transition 
-    ${location.pathname === "/dashboard"
+             ${location.pathname === "/dashboard"
                                 ? "bg-[#00ADB5] text-white"
                                 : "hover:bg-[#00ADB5] hover:text-white"}`}
                     >
@@ -323,7 +335,7 @@ function Dashboard() {
                         onDragOver={handleDrag}
                         onDrop={handleDrop}
                         className={`border-2 border-dashed p-10 text-center rounded-xl 
-        ${dragActive ? "border-[#00ADB5] bg-gray-200" : "border-gray-400"}`}
+              ${dragActive ? "border-[#00ADB5] bg-gray-200" : "border-gray-400"}`}
                     >
 
                         <p className="mb-3">
@@ -385,7 +397,7 @@ function Dashboard() {
 
                 {/* ================= PIE CHARTS ================= */}
 
-                <div className={`${cardStyle} p-6 rounded-xl shadow-lg mb-10`}>
+                <div className={`${cardStyle} p-6 rounded-xl shadow-lg mb-10 mt-10`}>
 
                     <h2 className="text-lg mb-4">
                         Storage Breakdown
