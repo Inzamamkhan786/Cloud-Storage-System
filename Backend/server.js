@@ -1,14 +1,14 @@
 require("dotenv").config();
 const cors = require("cors");
-
 const express = require("express");
 const pool = require("./Models/db");
+const user_detail = require("./Routes/user");
 const authRoutes = require("./Routes/authRoutes");
 const objectRoutes = require("./Routes/objectRoutes");
 const fileRoutes = require("./Routes/fileRoutes");
 const billingRoutes = require("./Routes/billingRoutes");
-const user_detail = require("./Routes/user");
 const rateLimiter = require("./Middleware/rateLimiter");
+require("./cron/deleteOldFiles");
 
 
 

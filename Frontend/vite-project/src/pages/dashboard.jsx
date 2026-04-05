@@ -105,10 +105,10 @@ function Dashboard() {
             formData.append("file", file);
 
             await API.post("/files/upload", formData, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    "Content-Type": "multipart/form-data"
-                }
+                // headers: {
+                //     Authorization: `Bearer ${token}`,
+                //     "Content-Type": "multipart/form-data"
+                // }
             });
 
             alert("File uploaded successfully");
@@ -224,6 +224,14 @@ function Dashboard() {
                         className="p-3 rounded-lg text-left hover:bg-[#00ADB5] hover:text-white transition"
                     >
                         Billing
+                    </button>
+
+
+                    <button
+                        onClick={() => navigate("/recycle-bin")}
+                        className="p-3 rounded-lg text-left hover:bg-[#00ADB5] hover:text-white transition"
+                    >
+                        Recycle Bin
                     </button>
 
                     <button

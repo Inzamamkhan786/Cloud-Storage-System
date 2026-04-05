@@ -3,7 +3,7 @@ const path = require("path");
 const fs = require("fs");
 const UPLOAD_DIR = path.join(process.cwd(), "Uploads");
 
-const MAX_STORAGE_BYTES = 5 * 1024 * 1024 * 1024; // 5GB
+const MAX_STORAGE_BYTES = 5 * 1024 * 1024 * 1024; // 5GB in free plan Basic
 exports.uploadFile = async (req, res) => {
   try {
 
@@ -126,16 +126,14 @@ exports.downloadFile = async (req, res) => {
 
 
 
-
 exports.deleteFile = async (req, res) => {
   try {
 
     const objectId = req.params.id;
     const userId = req.user.userId;
 
-    // check if file exists and belongs to the user
     const result = await pool.query(
-      `SELECT file_path FROM objects
+      `SELECT file_path, file_name FROM objects
        WHERE id=$1 AND user_id=$2 AND is_deleted=false`,
       [objectId, userId]
     );
@@ -147,23 +145,30 @@ exports.deleteFile = async (req, res) => {
     }
 
     const file = result.rows[0];
-
     const fileLocation = file.file_path;
 
-    // remove file from server storage
-    if (fs.existsSync(fileLocation)) {
-      fs.unlinkSync(fileLocation);
+    const baseFolder = path.join(process.cwd(), "Uploads", userId.toString());
+    const recycleFolder = path.join(baseFolder, "recycleBin");
+
+    if (!fs.existsSync(recycleFolder)) {
+      fs.mkdirSync(recycleFolder, { recursive: true });
     }
 
-    // mark file as deleted in database
+    const recyclePath = path.join(recycleFolder, path.basename(fileLocation));
+
+    if (fs.existsSync(fileLocation)) {
+      fs.renameSync(fileLocation, recyclePath);
+    }
+
     await pool.query(
       `UPDATE objects
-       SET is_deleted = true
-       WHERE id=$1`,
-      [objectId]
+       SET is_deleted=true,
+           deleted_at=NOW(),
+           file_path=$1
+       WHERE id=$2`,
+      [recyclePath, objectId]
     );
 
-    // log delete usage
     await pool.query(
       `INSERT INTO usage_logs
        (user_id, object_id, operation, data_transferred_bytes)
@@ -172,7 +177,7 @@ exports.deleteFile = async (req, res) => {
     );
 
     res.json({
-      message: "File deleted successfully"
+      message: "File moved to recycle bin"
     });
 
   } catch (error) {
@@ -181,7 +186,6 @@ exports.deleteFile = async (req, res) => {
     });
   }
 };
-
 
 
 
@@ -214,15 +218,12 @@ exports.getDuplicates = async (req, res) => {
 
 
 
-
 exports.deleteDuplicates = async (req, res) => {
   try {
 
     console.log("DELETE DUPLICATES CALLED");
 
     const userId = req.user.userId;
-
-    console.log("User ID:", userId);
 
     const duplicates = await pool.query(
       `SELECT file_name
@@ -233,12 +234,10 @@ exports.deleteDuplicates = async (req, res) => {
       [userId]
     );
 
-    console.log("Duplicates:", duplicates.rows);
-
     for (const row of duplicates.rows) {
 
       const files = await pool.query(
-        `SELECT id, file_path
+        `SELECT id, file_path, size_bytes
          FROM objects
          WHERE user_id=$1 
          AND file_name=$2
@@ -247,30 +246,33 @@ exports.deleteDuplicates = async (req, res) => {
         [userId, row.file_name]
       );
 
-      console.log("Files:", files.rows);
-
       const duplicateFiles = files.rows.slice(1);
 
       for (const file of duplicateFiles) {
 
-        console.log("Deleting:", file);
-
+        // absolute file path
         const fileLocation = path.join(
-          __dirname,
-          "..",
-          "Uploads",
+          process.cwd(),
           file.file_path
         );
 
-        console.log("Path:", fileLocation);
+        console.log("Deleting:", fileLocation);
 
         if (fs.existsSync(fileLocation)) {
           fs.unlinkSync(fileLocation);
         }
 
+        // log usage
         await pool.query(
-          `UPDATE objects 
-           SET is_deleted=true 
+          `INSERT INTO usage_logs
+           (user_id, object_id, operation, data_transferred_bytes)
+           VALUES ($1,$2,$3,$4)`,
+          [userId, file.id, "DELETE", file.size_bytes]
+        );
+
+        // permanent delete
+        await pool.query(
+          `DELETE FROM objects
            WHERE id=$1`,
           [file.id]
         );
@@ -280,17 +282,123 @@ exports.deleteDuplicates = async (req, res) => {
     }
 
     res.json({
-      message: "Duplicates deleted successfully"
+      message: "Duplicate files permanently deleted"
     });
 
   } catch (error) {
 
-    console.log("DELETE DUPLICATES ERROR:");
-    console.error(error);
+    console.error("DELETE DUPLICATES ERROR:", error);
 
     res.status(500).json({
       error: error.message
     });
 
+  }
+};
+
+
+exports.restoreFile = async (req, res) => {
+  try {
+
+    const objectId = req.params.id;
+    const userId = req.user.userId;
+
+    const result = await pool.query(
+      `SELECT file_path FROM objects
+       WHERE id=$1 AND user_id=$2 AND is_deleted=true`,
+      [objectId, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "File not found" });
+    }
+
+    const recyclePath = result.rows[0].file_path;
+    const uploadPath = recyclePath.replace("recycleBin", "uploads");
+
+    fs.renameSync(recyclePath, uploadPath);
+
+    await pool.query(
+      `UPDATE objects
+       SET is_deleted=false,
+           deleted_at=NULL,
+           file_path=$1
+       WHERE id=$2`,
+      [uploadPath, objectId]
+    );
+
+    res.json({ message: "File restored" });
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+
+
+exports.getRecycleBin = async (req, res) => {
+  try {
+
+    const userId = req.user.userId;
+
+    const result = await pool.query(
+      `SELECT * FROM objects
+       WHERE user_id=$1 
+       AND is_deleted=true
+       ORDER BY deleted_at DESC`,
+      [userId]
+    );
+
+    res.json({
+      files: result.rows
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      error: error.message
+    });
+  }
+};
+
+
+
+
+exports.permanentDelete = async (req, res) => {
+  try {
+
+    const objectId = req.params.id;
+    const userId = req.user.userId;
+
+    const result = await pool.query(
+      `SELECT file_path FROM objects
+       WHERE id=$1 AND user_id=$2 AND is_deleted=true`,
+      [objectId, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        message: "File not found"
+      });
+    }
+
+    const filePath = result.rows[0].file_path;
+
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
+    await pool.query(
+      `DELETE FROM objects WHERE id=$1`,
+      [objectId]
+    );
+
+    res.json({
+      message: "File permanently deleted"
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      error: error.message
+    });
   }
 };

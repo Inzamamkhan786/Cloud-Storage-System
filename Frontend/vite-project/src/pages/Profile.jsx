@@ -67,30 +67,37 @@ function Profile() {
                 <nav className="flex flex-col gap-3">
 
                     <button
-                        className="p-3 rounded-lg bg-[#00ADB5] text-white"
+                        className="p-3 rounded-lg bg-[#00ADB5] text-white text-left"
                     >
                         Profile
                     </button>
 
                     <button
                         onClick={() => navigate("/dashboard")}
-                        className="p-3 rounded-lg hover:bg-[#00ADB5] hover:text-white"
+                        className="p-3 rounded-lg hover:bg-[#00ADB5] hover:text-white text-left"
                     >
                         Dashboard
                     </button>
 
                     <button
                         onClick={() => navigate("/files")}
-                        className="p-3 rounded-lg hover:bg-[#00ADB5] hover:text-white"
+                        className="p-3 rounded-lg hover:bg-[#00ADB5] hover:text-white text-left"
                     >
                         Files
                     </button>
 
                     <button
                         onClick={() => navigate("/billing")}
-                        className="p-3 rounded-lg hover:bg-[#00ADB5] hover:text-white"
+                        className="p-3 rounded-lg hover:bg-[#00ADB5] hover:text-white text-left"
                     >
                         Billing
+                    </button>
+
+                    <button
+                        onClick={() => navigate("/recycle-bin")}
+                        className="p-3 rounded-lg hover:bg-[#00ADB5] hover:text-white text-left"
+                    >
+                        Recycle Bin
                     </button>
 
                     
@@ -100,7 +107,7 @@ function Profile() {
                             localStorage.removeItem("token");
                             navigate("/");
                         }}
-                        className="p-3 rounded-lg hover:bg-red-500 hover:text-white"
+                        className="p-3 rounded-lg hover:bg-red-500 hover:text-white text-left"
                     >
                         Logout
                     </button>

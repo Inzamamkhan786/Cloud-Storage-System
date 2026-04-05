@@ -7,6 +7,7 @@ import Files from "./pages/File";
 import Billing from "./pages/Billing";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Profile from "./pages/Profile";
+import Recycle from "./pages/Recycle";
 
 function App() {
 
@@ -52,6 +53,16 @@ function App() {
             </ProtectedRoute>
           }
         />
+
+        <Route
+         path="/recycle-bin" 
+         element={
+         <ProtectedRoute>
+          <Recycle />
+          </ProtectedRoute>
+        } />
+
+        
 
         {/*Profile*/}
 

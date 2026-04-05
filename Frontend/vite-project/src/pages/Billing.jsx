@@ -109,11 +109,20 @@ function Billing() {
                         Files
                     </button>
 
+                    
+
                     <button
                         onClick={() => navigate("/billing")}
                         className="p-3 rounded-lg text-left bg-[#00ADB5] text-white"
                     >
                         Billing
+                    </button>
+
+                    <button
+                        onClick={() => navigate("/recycle-bin")}
+                        className="p-3 rounded-lg text-left hover:bg-[#00ADB5] hover:text-white transition"
+                    >
+                        Recycle Bin
                     </button>
 
                     <button

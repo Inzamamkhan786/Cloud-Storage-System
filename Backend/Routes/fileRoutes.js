@@ -8,22 +8,29 @@ const authMiddleware = require("../Middleware/authMiddleware");
 const fileController = require("../Controllers/fileController");
 
 const storage = multer.diskStorage({
+
     destination: function (req, file, cb) {
 
         const userId = req.user.userId;
 
-        const userFolder = path.join(__dirname, "..", "Uploads", userId.toString());
+        const baseFolder = path.join(__dirname, "..", "Uploads", userId.toString());
 
-        if (!fs.existsSync(userFolder)) {
-            fs.mkdirSync(userFolder, { recursive: true });
-        }
+        const uploadFolder = path.join(baseFolder, "uploads");
+        const recycleFolder = path.join(baseFolder, "recycleBin");
 
-        cb(null, userFolder);
+        [uploadFolder, recycleFolder].forEach(folder => {
+            if (!fs.existsSync(folder)) {
+                fs.mkdirSync(folder, { recursive: true });
+            }
+        });
+
+        cb(null, uploadFolder);
     },
 
     filename: (req, file, cb) => {
         cb(null, Date.now() + "-" + file.originalname);
     }
+
 });
 
 const upload = multer({ storage });
@@ -37,5 +44,12 @@ router.delete("/delete-duplicates", authMiddleware, fileController.deleteDuplica
 router.delete("/:id", authMiddleware, fileController.deleteFile);
 
 router.get("/duplicates", authMiddleware, fileController.getDuplicates);
+
+router.get("/recycle-bin",authMiddleware,fileController.getRecycleBin);
+
+router.post("/restore/:id",authMiddleware,fileController.restoreFile);
+
+router.delete("/permanent-delete/:id",authMiddleware,fileController.permanentDelete);
+
 
 module.exports = router;
