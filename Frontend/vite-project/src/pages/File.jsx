@@ -101,7 +101,7 @@ function Files() {
                     Authorization: `Bearer ${token}`
                 }
             });
-            fetchUsage();
+            
 
             const url = window.URL.createObjectURL(new Blob([response.data]));
             const link = document.createElement("a");
@@ -113,6 +113,7 @@ function Files() {
             link.click();
 
             link.remove();
+            fetchUsage();
 
         } catch (error) {
 
