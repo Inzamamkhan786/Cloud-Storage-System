@@ -14,4 +14,8 @@ router.get("/summary", authMiddleware, billingController.getUsageSummary);
 // Billing invoice
 router.get("/invoice", authMiddleware, billingController.getBillingDetails);
 
+
+// Get usage in number
+router.get("/usage-num",authMiddleware,billingController.getUseNum);
+
 module.exports = router;
