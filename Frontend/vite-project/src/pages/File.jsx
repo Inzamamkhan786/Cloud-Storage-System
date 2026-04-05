@@ -54,6 +54,18 @@ function Files() {
 
     };
 
+    const fetchUsage = async () => {
+        try {
+
+            const res = await API.get("/billing/usage");
+
+            console.log("Usage response:", res.data);
+
+        } catch (error) {
+            console.log("Usage fetch error:", error);
+        }
+    };
+
     const toggleMode = () => {
         setDarkMode(!darkMode);
     };
