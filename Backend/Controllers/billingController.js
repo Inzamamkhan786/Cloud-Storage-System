@@ -164,14 +164,14 @@ exports.getUsage = async (req, res) => {
 
     });
 
-    const total = images + videos + docs + others || 1;
+    //const total = images + videos + docs + others || 1;
 
-    const fileStats = [
-      { name: "Images", value: Math.round((images / total) * 100) },
-      { name: "Videos", value: Math.round((videos / total) * 100) },
-      { name: "Docs", value: Math.round((docs / total) * 100) },
-      { name: "Others", value: Math.round((others / total) * 100) }
-    ];
+    // const fileStats = [
+    //   { name: "Images", value: Number(row.images) },
+    //   { name: "Videos", value: Number(row.videos) },
+    //   { name: "Docs", value: Number(row.docs) },
+    //   { name: "Others", value: Number(row.others) }
+    // ];
 
     const storageBytes = Number(storage.rows[0].total_storage);
 
@@ -181,6 +181,48 @@ exports.getUsage = async (req, res) => {
       storageUsed: Number(storageMB.toFixed(2)),
       files: Number(files.rows[0].total_files),
       plan: "Basic",
+      //fileStats
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      error: error.message
+    });
+  }
+};
+
+
+
+
+
+exports.getUseNum = async (req, res) => {
+  try {
+
+    const userId = req.user.userId;
+
+    const result = await pool.query(
+      `SELECT 
+        COUNT(*) FILTER (WHERE file_name ~* '\\.(jpg|jpeg|png|gif|webp)$') AS images,
+        COUNT(*) FILTER (WHERE file_name ~* '\\.(mp4|mov|avi|mkv)$') AS videos,
+        COUNT(*) FILTER (WHERE file_name ~* '\\.(pdf|doc|docx|txt|ppt|pptx|xls|xlsx)$') AS docs,
+        COUNT(*) FILTER (
+          WHERE file_name !~* '\\.(jpg|jpeg|png|gif|webp|mp4|mov|avi|mkv|pdf|doc|docx|txt|ppt|pptx|xls|xlsx)$'
+        ) AS others
+      FROM objects
+      WHERE user_id=$1 AND is_deleted=false`,
+      [userId]
+    );
+
+    const row = result.rows[0];
+
+    const fileStats = [
+      { name: "Images", value: Number(row.images) },
+      { name: "Videos", value: Number(row.videos) },
+      { name: "Docs", value: Number(row.docs) },
+      { name: "Others", value: Number(row.others) }
+    ];
+
+    res.json({
       fileStats
     });
 
@@ -190,6 +232,8 @@ exports.getUsage = async (req, res) => {
     });
   }
 };
+
+
 
 
 
