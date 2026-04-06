@@ -10,21 +10,27 @@ const billingRoutes = require("./Routes/billingRoutes");
 const rateLimiter = require("./Middleware/rateLimiter");
 require("./cron/deleteOldFiles");
 
-
-
 const app = express();
-app.use(cors());
+
+app.use(cors({
+  origin: [
+    "http://localhost:5173",
+    "https://cloud-storage-system-8zhq.vercel.app"
+  ],
+  credentials: true
+}));
+
 app.use(express.json());
 app.use(rateLimiter);
-
 
 app.use((req,res,next)=>{
   console.log(req.method, req.url);
   next();
 });
+
 app.use("/api/auth", authRoutes);
-app.use("/api/files", objectRoutes);   // list files
-app.use("/api/files", fileRoutes);     // upload/download/delete
+app.use("/api/files", objectRoutes);
+app.use("/api/files", fileRoutes);
 app.use("/api/billing", billingRoutes);
 app.use("/api/user/",user_detail);
 
@@ -36,5 +42,5 @@ app.get("/", async (req, res) => {
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
-    console.log(` Server running on port ${PORT}`);
+    console.log(`Server running on port ${PORT}`);
 });
