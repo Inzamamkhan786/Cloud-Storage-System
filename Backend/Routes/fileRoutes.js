@@ -7,7 +7,7 @@ const rateLimiter = require("../Middleware/rateLimiter");
 const authMiddleware = require("../Middleware/authMiddleware");
 const fileController = require("../Controllers/fileController");
 
-const storage = multer.diskStorage({
+const storage = multer.memoryStorage({
 
     destination: function (req, file, cb) {
 
