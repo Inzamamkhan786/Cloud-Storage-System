@@ -42,11 +42,11 @@ exports.uploadFile = async (req, res) => {
     // UPLOAD TO SUPABASE
     // ===============================
 
-    const filePath = `${userId}/${Date.now()}-${fileName}`;
+   const filePath = `Uploads/${userId}/uploads/${Date.now()}-${fileName}`;
 
     const { data, error } = await supabase.storage
-      .from("storage-files")  // your bucket name
-      .upload(filePath, req.file.buffer);
+  .from("storage-files")
+  .upload(filePath, req.file.buffer);
 
     if (error) throw error;
 
@@ -149,12 +149,15 @@ exports.deleteFile = async (req, res) => {
 
     const file = result.rows[0];
 
-    const recyclePath = `recycleBin/${file.file_path}`;
+    const recyclePath = file.file_path.replace(
+  "uploads",
+  "recycleBin"
+);
 
     // move in supabase
-    const { error } = await supabase.storage
-      .from("storage-files")
-      .move(file.file_path, recyclePath);
+    await supabase.storage
+  .from("storage-files")
+  .move(file.file_path, recyclePath);
 
     if (error) throw error;
 
@@ -290,6 +293,9 @@ exports.deleteDuplicates = async (req, res) => {
 
 
 
+
+
+
 exports.restoreFile = async (req, res) => {
   try {
 
@@ -307,7 +313,10 @@ exports.restoreFile = async (req, res) => {
     }
 
     const recyclePath = result.rows[0].file_path;
-    const uploadPath = recyclePath.replace("recycleBin/", "");
+    const uploadPath = recyclePath.replace(
+  "recycleBin",
+  "uploads"
+);
 
     const { error } = await supabase.storage
       .from("storage-files")
@@ -382,9 +391,9 @@ exports.permanentDelete = async (req, res) => {
 
     const filePath = result.rows[0].file_path;
 
-    const { error } = await supabase.storage
-      .from("storage-files")
-      .remove([filePath]);
+    await supabase.storage
+  .from("storage-files")
+  .remove([file.file_path]);
 
     if (error) throw error;
 
