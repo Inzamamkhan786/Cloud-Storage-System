@@ -2,9 +2,11 @@ const pool = require("../Models/db");
 const path = require("path");
 const fs = require("fs");
 const UPLOAD_DIR = path.join(process.cwd(), "Uploads");
-import supabase from "../config/supabase.js"
+const supabase = require("../config/supabase");
 
 const MAX_STORAGE_BYTES = 5 * 1024 * 1024 * 1024; // 5GB in free plan Basic
+
+
 exports.uploadFile = async (req, res) => {
   try {
 
@@ -15,7 +17,6 @@ exports.uploadFile = async (req, res) => {
     const userId = req.user.userId;
 
     const fileName = req.file.originalname;
-    const filePath = req.file.path;
     const sizeBytes = req.file.size;
 
     // ===============================
@@ -31,25 +32,23 @@ exports.uploadFile = async (req, res) => {
 
     const currentStorage = Number(storageResult.rows[0].total_storage);
 
-    // ===============================
-    // CHECK STORAGE LIMIT
-    // ===============================
-
     if (currentStorage + sizeBytes > MAX_STORAGE_BYTES) {
+      return res.status(400).json({
+        message: "Storage full (5GB limit). Upgrade your plan."
+      });
+    }
 
-  // remove uploaded file
-  const fileLocation = path.join(__dirname, "..", "uploads", filePath);
+    // ===============================
+    // UPLOAD TO SUPABASE
+    // ===============================
 
-  if (fs.existsSync(fileLocation)) {
-    fs.unlinkSync(fileLocation);
-  }
+    const filePath = `${userId}/${Date.now()}-${fileName}`;
 
-  return res.status(400).json({
-    message: "Storage full (5GB limit). Upgrade your plan."
-  });
+    const { data, error } = await supabase.storage
+      .from("storage-files")  // your bucket name
+      .upload(filePath, req.file.buffer);
 
-
-}
+    if (error) throw error;
 
     // ===============================
     // INSERT FILE
@@ -63,10 +62,6 @@ exports.uploadFile = async (req, res) => {
     );
 
     const objectId = result.rows[0].id;
-
-    // ===============================
-    // LOG USAGE
-    // ===============================
 
     await pool.query(
       `INSERT INTO usage_logs (user_id, object_id, operation, data_transferred_bytes)
@@ -108,16 +103,20 @@ exports.downloadFile = async (req, res) => {
 
     const file = result.rows[0];
 
-    const fileFullPath = file.file_path;
+    const { data, error } = await supabase.storage
+      .from("storage-files")
+      .download(file.file_path);
 
-    // log download usage
+    if (error) throw error;
+
     await pool.query(
       `INSERT INTO usage_logs (user_id, object_id, operation, data_transferred_bytes)
        VALUES ($1,$2,$3,$4)`,
       [userId, objectId, "DOWNLOAD", file.size_bytes]
     );
 
-    res.download(fileFullPath, file.file_name);
+    res.setHeader("Content-Disposition", `attachment; filename=${file.file_name}`);
+    res.send(Buffer.from(await data.arrayBuffer()));
 
   } catch (err) {
     res.status(500).json({ error: err.message });
