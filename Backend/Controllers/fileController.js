@@ -2,6 +2,7 @@ const pool = require("../Models/db");
 const path = require("path");
 const fs = require("fs");
 const UPLOAD_DIR = path.join(process.cwd(), "Uploads");
+import supabase from "../config/supabase.js"
 
 const MAX_STORAGE_BYTES = 5 * 1024 * 1024 * 1024; // 5GB in free plan Basic
 exports.uploadFile = async (req, res) => {
