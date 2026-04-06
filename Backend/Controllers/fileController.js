@@ -126,6 +126,8 @@ exports.downloadFile = async (req, res) => {
 
 
 
+
+
 exports.deleteFile = async (req, res) => {
   try {
 
@@ -133,7 +135,8 @@ exports.deleteFile = async (req, res) => {
     const userId = req.user.userId;
 
     const result = await pool.query(
-      `SELECT file_path, file_name FROM objects
+      `SELECT file_path, file_name 
+       FROM objects
        WHERE id=$1 AND user_id=$2 AND is_deleted=false`,
       [objectId, userId]
     );
@@ -145,20 +148,15 @@ exports.deleteFile = async (req, res) => {
     }
 
     const file = result.rows[0];
-    const fileLocation = file.file_path;
 
-    const baseFolder = path.join(process.cwd(), "Uploads", userId.toString());
-    const recycleFolder = path.join(baseFolder, "recycleBin");
+    const recyclePath = `recycleBin/${file.file_path}`;
 
-    if (!fs.existsSync(recycleFolder)) {
-      fs.mkdirSync(recycleFolder, { recursive: true });
-    }
+    // move in supabase
+    const { error } = await supabase.storage
+      .from("storage-files")
+      .move(file.file_path, recyclePath);
 
-    const recyclePath = path.join(recycleFolder, path.basename(fileLocation));
-
-    if (fs.existsSync(fileLocation)) {
-      fs.renameSync(fileLocation, recyclePath);
-    }
+    if (error) throw error;
 
     await pool.query(
       `UPDATE objects
@@ -167,13 +165,6 @@ exports.deleteFile = async (req, res) => {
            file_path=$1
        WHERE id=$2`,
       [recyclePath, objectId]
-    );
-
-    await pool.query(
-      `INSERT INTO usage_logs
-       (user_id, object_id, operation, data_transferred_bytes)
-       VALUES ($1,$2,$3,$4)`,
-      [userId, objectId, "DELETE", 0]
     );
 
     res.json({
@@ -218,6 +209,9 @@ exports.getDuplicates = async (req, res) => {
 
 
 
+
+
+
 exports.deleteDuplicates = async (req, res) => {
   try {
 
@@ -250,17 +244,14 @@ exports.deleteDuplicates = async (req, res) => {
 
       for (const file of duplicateFiles) {
 
-        // absolute file path
-        const fileLocation = path.join(
-          process.cwd(),
-          file.file_path
-        );
+        console.log("Deleting:", file.file_path);
 
-        console.log("Deleting:", fileLocation);
+        // delete from supabase
+        const { error } = await supabase.storage
+          .from("storage-files")
+          .remove([file.file_path]);
 
-        if (fs.existsSync(fileLocation)) {
-          fs.unlinkSync(fileLocation);
-        }
+        if (error) throw error;
 
         // log usage
         await pool.query(
@@ -270,7 +261,7 @@ exports.deleteDuplicates = async (req, res) => {
           [userId, file.id, "DELETE", file.size_bytes]
         );
 
-        // permanent delete
+        // delete from database
         await pool.query(
           `DELETE FROM objects
            WHERE id=$1`,
@@ -297,6 +288,8 @@ exports.deleteDuplicates = async (req, res) => {
 };
 
 
+
+
 exports.restoreFile = async (req, res) => {
   try {
 
@@ -314,9 +307,13 @@ exports.restoreFile = async (req, res) => {
     }
 
     const recyclePath = result.rows[0].file_path;
-    const uploadPath = recyclePath.replace("recycleBin", "uploads");
+    const uploadPath = recyclePath.replace("recycleBin/", "");
 
-    fs.renameSync(recyclePath, uploadPath);
+    const { error } = await supabase.storage
+      .from("storage-files")
+      .move(recyclePath, uploadPath);
+
+    if (error) throw error;
 
     await pool.query(
       `UPDATE objects
@@ -363,6 +360,8 @@ exports.getRecycleBin = async (req, res) => {
 
 
 
+
+
 exports.permanentDelete = async (req, res) => {
   try {
 
@@ -383,9 +382,11 @@ exports.permanentDelete = async (req, res) => {
 
     const filePath = result.rows[0].file_path;
 
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
+    const { error } = await supabase.storage
+      .from("storage-files")
+      .remove([filePath]);
+
+    if (error) throw error;
 
     await pool.query(
       `DELETE FROM objects WHERE id=$1`,
