@@ -1,6 +1,6 @@
 const cron = require("node-cron");
 const pool = require("../Models/db");
-const fs = require("fs");
+const supabase = require("../config/supabase");
 
 cron.schedule("0 0 * * *", async () => {
   try {
@@ -16,10 +16,17 @@ cron.schedule("0 0 * * *", async () => {
 
     for (const file of result.rows) {
 
-      if (fs.existsSync(file.file_path)) {
-        fs.unlinkSync(file.file_path);
+      // delete from supabase
+      const { error } = await supabase.storage
+        .from("storage-files")
+        .remove([file.file_path]);
+
+      if (error) {
+        console.log("Supabase delete error:", error);
+        continue;
       }
 
+      // delete from database
       await pool.query(
         `DELETE FROM objects WHERE id=$1`,
         [file.id]
