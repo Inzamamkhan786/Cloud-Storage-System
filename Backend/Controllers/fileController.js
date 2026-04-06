@@ -155,7 +155,7 @@ exports.deleteFile = async (req, res) => {
 );
 
     // move in supabase
-    await supabase.storage
+  const { error } = await supabase.storage
   .from("storage-files")
   .move(file.file_path, recyclePath);
 
@@ -215,81 +215,49 @@ exports.getDuplicates = async (req, res) => {
 
 
 
-exports.deleteDuplicates = async (req, res) => {
-  try {
+for (const row of duplicates.rows) {
 
-    console.log("DELETE DUPLICATES CALLED");
+  const files = await pool.query(
+    `SELECT id, file_path, size_bytes
+     FROM objects
+     WHERE user_id=$1 
+     AND file_name=$2
+     AND is_deleted=false
+     ORDER BY id`,
+    [userId, row.file_name]
+  );
 
-    const userId = req.user.userId;
+  const duplicateFiles = files.rows.slice(1);
 
-    const duplicates = await pool.query(
-      `SELECT file_name
-       FROM objects
-       WHERE user_id=$1 AND is_deleted=false
-       GROUP BY file_name
-       HAVING COUNT(*) > 1`,
-      [userId]
+  if (duplicateFiles.length === 0) continue;
+
+  const paths = duplicateFiles.map(f => f.file_path);
+
+  const { error } = await supabase.storage
+    .from("storage-files")
+    .remove(paths);
+
+  if (error) {
+    console.error("Supabase delete error:", error);
+    continue;
+  }
+
+  for (const file of duplicateFiles) {
+
+    await pool.query(
+      `INSERT INTO usage_logs
+       (user_id, object_id, operation, data_transferred_bytes)
+       VALUES ($1,$2,$3,$4)`,
+      [userId, file.id, "DELETE", file.size_bytes]
     );
 
-    for (const row of duplicates.rows) {
-
-      const files = await pool.query(
-        `SELECT id, file_path, size_bytes
-         FROM objects
-         WHERE user_id=$1 
-         AND file_name=$2
-         AND is_deleted=false
-         ORDER BY id`,
-        [userId, row.file_name]
-      );
-
-      const duplicateFiles = files.rows.slice(1);
-
-      for (const file of duplicateFiles) {
-
-        console.log("Deleting:", file.file_path);
-
-        // delete from supabase
-        const { error } = await supabase.storage
-          .from("storage-files")
-          .remove([file.file_path]);
-
-        if (error) throw error;
-
-        // log usage
-        await pool.query(
-          `INSERT INTO usage_logs
-           (user_id, object_id, operation, data_transferred_bytes)
-           VALUES ($1,$2,$3,$4)`,
-          [userId, file.id, "DELETE", file.size_bytes]
-        );
-
-        // delete from database
-        await pool.query(
-          `DELETE FROM objects
-           WHERE id=$1`,
-          [file.id]
-        );
-
-      }
-
-    }
-
-    res.json({
-      message: "Duplicate files permanently deleted"
-    });
-
-  } catch (error) {
-
-    console.error("DELETE DUPLICATES ERROR:", error);
-
-    res.status(500).json({
-      error: error.message
-    });
-
+    await pool.query(
+      `DELETE FROM objects
+       WHERE id=$1`,
+      [file.id]
+    );
   }
-};
-
+}
 
 
 
@@ -390,12 +358,11 @@ exports.permanentDelete = async (req, res) => {
     }
 
     const filePath = result.rows[0].file_path;
-
-    await supabase.storage
+   const { error } = await supabase.storage
   .from("storage-files")
-  .remove([file.file_path]);
+  .remove([filePath]);
 
-    if (error) throw error;
+if (error) throw error;
 
     await pool.query(
       `DELETE FROM objects WHERE id=$1`,
