@@ -49,6 +49,22 @@ exports.getBillingDetails = async (req, res) => {
 
     const userId = req.user.userId;
 
+    // ================================
+    // Get Storage Usage
+    // ================================
+    const storage = await pool.query(
+      `SELECT COALESCE(SUM(size_bytes),0) AS total_storage
+       FROM objects
+       WHERE user_id=$1 AND is_deleted=false`,
+      [userId]
+    );
+
+    const storageBytes = Number(storage.rows[0].total_storage);
+    const storageGB = storageBytes / (1024 * 1024 * 1024);
+
+    // ================================
+    // Get Usage Logs
+    // ================================
     const usage = await pool.query(
       `SELECT 
           operation,
@@ -63,41 +79,61 @@ exports.getBillingDetails = async (req, res) => {
     let totalCost = 0;
     let billing = [];
 
-    
+    usage.rows.forEach((row) => {
 
-   usage.rows.forEach((row) => {
+      const bytes = Number(row.total_bytes);
+      const requests = Number(row.request_count);
 
-  const bytes = Number(row.total_bytes);
-  const requests = Number(row.request_count);
+      const mb = bytes / (1024 * 1024);
 
-  const mb = bytes / (1024 * 1024);
+      let cost = 0;
 
-  let cost = 0;
+      if (row.operation === "UPLOAD") {
+        cost = mb * 0.01;
+      } 
+      else if (row.operation === "DOWNLOAD") {
+        cost = mb * 0.02;
+      } 
+      else if (row.operation === "LIST" || row.operation === "DELETE") {
+        cost = requests * 0.001;
+      }
 
-  if (row.operation === "UPLOAD") {
-    cost = mb * 0.01;
-  } 
-  else if (row.operation === "DOWNLOAD") {
-    cost = mb * 0.02;
-  } 
-  else if (row.operation === "LIST" || row.operation === "DELETE") {
-    cost = requests * 0.001;
-  }
+      billing.push({
+        operation: row.operation,
+        requests,
+        total_MB: mb.toFixed(2),
+        cost: cost.toFixed(4)
+      });
 
-  billing.push({
-    operation: row.operation,
-    requests,
-    total_MB: mb.toFixed(2),
-    cost: cost.toFixed(4)
-  });
+      totalCost += cost;
 
-  totalCost += cost;
+    });
 
-});
+    // ================================
+    // Free Tier Logic (5GB)
+    // ================================
+    const FREE_LIMIT_GB = 5;
 
+    let finalCost = totalCost;
+    let billingMode = "FREE";
+
+    if (storageGB <= FREE_LIMIT_GB) {
+      finalCost = 0;
+      billingMode = "FREE_TIER";
+    } else {
+      billingMode = "PAID";
+    }
+
+    // ================================
+    // Response
+    // ================================
     res.json({
       billing,
-      total_cost: totalCost.toFixed(4)
+      estimated_cost: totalCost.toFixed(4),
+      total_cost: finalCost.toFixed(4),
+      storage_used_gb: storageGB.toFixed(2),
+      free_limit_gb: FREE_LIMIT_GB,
+      billing_mode: billingMode
     });
 
   } catch (error) {
