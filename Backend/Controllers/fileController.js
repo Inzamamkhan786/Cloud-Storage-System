@@ -215,50 +215,74 @@ exports.getDuplicates = async (req, res) => {
 
 
 
-for (const row of duplicates.rows) {
+exports.deleteDuplicates = async (req, res) => {
+  try {
 
-  const files = await pool.query(
-    `SELECT id, file_path, size_bytes
-     FROM objects
-     WHERE user_id=$1 
-     AND file_name=$2
-     AND is_deleted=false
-     ORDER BY id`,
-    [userId, row.file_name]
-  );
+    const userId = req.user.userId;
 
-  const duplicateFiles = files.rows.slice(1);
-
-  if (duplicateFiles.length === 0) continue;
-
-  const paths = duplicateFiles.map(f => f.file_path);
-
-  const { error } = await supabase.storage
-    .from("storage-files")
-    .remove(paths);
-
-  if (error) {
-    console.error("Supabase delete error:", error);
-    continue;
-  }
-
-  for (const file of duplicateFiles) {
-
-    await pool.query(
-      `INSERT INTO usage_logs
-       (user_id, object_id, operation, data_transferred_bytes)
-       VALUES ($1,$2,$3,$4)`,
-      [userId, file.id, "DELETE", file.size_bytes]
+    const duplicates = await pool.query(
+      `SELECT file_name
+       FROM objects
+       WHERE user_id=$1 AND is_deleted=false
+       GROUP BY file_name
+       HAVING COUNT(*) > 1`,
+      [userId]
     );
 
-    await pool.query(
-      `DELETE FROM objects
-       WHERE id=$1`,
-      [file.id]
-    );
-  }
-}
+    for (const row of duplicates.rows) {
 
+      const files = await pool.query(
+        `SELECT id, file_path, size_bytes
+         FROM objects
+         WHERE user_id=$1 
+         AND file_name=$2
+         AND is_deleted=false
+         ORDER BY id`,
+        [userId, row.file_name]
+      );
+
+      const duplicateFiles = files.rows.slice(1);
+
+      if (duplicateFiles.length === 0) continue;
+
+      const paths = duplicateFiles.map(f => f.file_path);
+
+      const { error } = await supabase.storage
+        .from("storage-files")
+        .remove(paths);
+
+      if (error) {
+        console.error("Supabase delete error:", error);
+        continue;
+      }
+
+      for (const file of duplicateFiles) {
+
+        await pool.query(
+          `INSERT INTO usage_logs
+           (user_id, object_id, operation, data_transferred_bytes)
+           VALUES ($1,$2,$3,$4)`,
+          [userId, file.id, "DELETE", file.size_bytes]
+        );
+
+        await pool.query(
+          `DELETE FROM objects
+           WHERE id=$1`,
+          [file.id]
+        );
+      }
+    }
+
+    res.json({
+      message: "Duplicate files deleted successfully"
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      error: error.message
+    });
+  }
+};
 
 
 
