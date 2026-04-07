@@ -109,32 +109,41 @@ exports.getBillingDetails = async (req, res) => {
 
     });
 
-    // ================================
-    // Free Tier Logic (5GB)
-    // ================================
-    const FREE_LIMIT_GB = 5;
+   // ================================
+// Free Tier Logic
+// ================================
+const FREE_LIMIT_GB = 5;
+const FREE_REQUEST_LIMIT = 1000;
 
-    let finalCost = totalCost;
-    let billingMode = "FREE";
+// Calculate total requests
+let totalRequests = 0;
 
-    if (storageGB <= FREE_LIMIT_GB) {
-      finalCost = 0;
-      billingMode = "FREE_TIER";
-    } else {
-      billingMode = "PAID";
-    }
+billing.forEach(item => {
+  totalRequests += item.requests;
+});
+
+let finalCost = totalCost;
+let billingMode = "FREE_TIER";
+
+if (storageGB > FREE_LIMIT_GB || totalRequests > FREE_REQUEST_LIMIT) {
+  billingMode = "PAID";
+} else {
+  finalCost = 0;
+}
 
     // ================================
     // Response
     // ================================
     res.json({
-      billing,
-      estimated_cost: totalCost.toFixed(4),
-      total_cost: finalCost.toFixed(4),
-      storage_used_gb: storageGB.toFixed(2),
-      free_limit_gb: FREE_LIMIT_GB,
-      billing_mode: billingMode
-    });
+  billing,
+  estimated_cost: totalCost.toFixed(4),
+  total_cost: finalCost.toFixed(4),
+  storage_used_gb: storageGB.toFixed(2),
+  total_requests: totalRequests,
+  free_limit_gb: FREE_LIMIT_GB,
+  free_request_limit: FREE_REQUEST_LIMIT,
+  billing_mode: billingMode
+});
 
   } catch (error) {
     res.status(500).json({
