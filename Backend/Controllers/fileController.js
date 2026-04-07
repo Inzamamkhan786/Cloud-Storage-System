@@ -245,7 +245,11 @@ exports.deleteDuplicates = async (req, res) => {
 
       if (duplicateFiles.length === 0) continue;
 
-      const paths = duplicateFiles.map(f => f.file_path);
+      const paths = duplicateFiles.map(f => {
+  return f.file_path.split("storage-files/")[1];
+});
+
+      console.log("Deleting paths:", paths);
 
       const { error } = await supabase.storage
         .from("storage-files")
