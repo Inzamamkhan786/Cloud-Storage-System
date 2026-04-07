@@ -261,13 +261,12 @@ exports.deleteDuplicates = async (req, res) => {
         await pool.query(
           `INSERT INTO usage_logs
            (user_id, object_id, operation, data_transferred_bytes)
-           VALUES ($1,$2,$3,$4)`,
-          [userId, file.id, "DELETE_DUPLICATE", file.size_bytes]
+           VALUES ($1,$2,'DELETE',$3)`,
+          [userId, file.id, file.size_bytes]
         );
 
         await pool.query(
-          `DELETE FROM objects
-           WHERE id=$1`,
+          `DELETE FROM objects WHERE id=$1`,
           [file.id]
         );
       }
@@ -278,12 +277,12 @@ exports.deleteDuplicates = async (req, res) => {
     });
 
   } catch (error) {
+    console.error(error);
     res.status(500).json({
       error: error.message
     });
   }
 };
-
 
 
 
@@ -406,13 +405,12 @@ exports.permanentDelete = async (req, res) => {
     await pool.query(
       `INSERT INTO usage_logs
        (user_id, object_id, operation, data_transferred_bytes)
-       VALUES ($1,$2,$3,$4)`,
-      [userId, objectId, "PERMANENT_DELETE", sizeBytes]
+       VALUES ($1,$2,'DELETE',$3)`,
+      [userId, objectId, sizeBytes]
     );
 
     await pool.query(
-      `DELETE FROM objects
-       WHERE id=$1`,
+      `DELETE FROM objects WHERE id=$1`,
       [objectId]
     );
 
