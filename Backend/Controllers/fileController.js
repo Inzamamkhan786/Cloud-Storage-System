@@ -42,11 +42,13 @@ exports.uploadFile = async (req, res) => {
     // UPLOAD TO SUPABASE
     // ===============================
 
-   const filePath = `Uploads/${userId}/uploads/${Date.now()}-${fileName}`;
+    const filePath = `Uploads/${userId}/${Date.now()}-${fileName}`;
 
-    const { data, error } = await supabase.storage
-  .from("storage-files")
-  .upload(filePath, req.file.buffer);
+    const { error } = await supabase.storage
+      .from("storage-files")
+      .upload(filePath, req.file.buffer, {
+        contentType: req.file.mimetype
+      });
 
     if (error) throw error;
 
@@ -64,7 +66,8 @@ exports.uploadFile = async (req, res) => {
     const objectId = result.rows[0].id;
 
     await pool.query(
-      `INSERT INTO usage_logs (user_id, object_id, operation, data_transferred_bytes)
+      `INSERT INTO usage_logs
+       (user_id, object_id, operation, data_transferred_bytes)
        VALUES ($1,$2,$3,$4)`,
       [userId, objectId, "UPLOAD", sizeBytes]
     );
@@ -80,7 +83,6 @@ exports.uploadFile = async (req, res) => {
     });
   }
 };
-
 
 
 
@@ -245,9 +247,7 @@ exports.deleteDuplicates = async (req, res) => {
 
       if (duplicateFiles.length === 0) continue;
 
-      const paths = duplicateFiles.map(f => {
-  return f.file_path.split("storage-files/")[1];
-});
+      const paths = duplicateFiles.map(f => f.file_path);
 
       console.log("Deleting paths:", paths);
 
@@ -266,7 +266,7 @@ exports.deleteDuplicates = async (req, res) => {
           `INSERT INTO usage_logs
            (user_id, object_id, operation, data_transferred_bytes)
            VALUES ($1,$2,$3,$4)`,
-          [userId, file.id, "DELETE", file.size_bytes]
+          [userId, file.id, "DELETE_DUPLICATE", file.size_bytes]
         );
 
         await pool.query(
@@ -282,6 +282,7 @@ exports.deleteDuplicates = async (req, res) => {
     });
 
   } catch (error) {
+    console.error(error);
     res.status(500).json({
       error: error.message
     });
@@ -366,7 +367,6 @@ exports.getRecycleBin = async (req, res) => {
 
 
 
-
 exports.permanentDelete = async (req, res) => {
   try {
 
@@ -374,7 +374,8 @@ exports.permanentDelete = async (req, res) => {
     const userId = req.user.userId;
 
     const result = await pool.query(
-      `SELECT file_path FROM objects
+      `SELECT file_path, size_bytes
+       FROM objects
        WHERE id=$1 AND user_id=$2 AND is_deleted=true`,
       [objectId, userId]
     );
@@ -386,11 +387,20 @@ exports.permanentDelete = async (req, res) => {
     }
 
     const filePath = result.rows[0].file_path;
-   const { error } = await supabase.storage
-  .from("storage-files")
-  .remove([filePath]);
+    const sizeBytes = result.rows[0].size_bytes;
 
-if (error) throw error;
+    const { error } = await supabase.storage
+      .from("storage-files")
+      .remove([filePath]);
+
+    if (error) throw error;
+
+    await pool.query(
+      `INSERT INTO usage_logs
+       (user_id, object_id, operation, data_transferred_bytes)
+       VALUES ($1,$2,$3,$4)`,
+      [userId, objectId, "PERMANENT_DELETE", sizeBytes]
+    );
 
     await pool.query(
       `DELETE FROM objects WHERE id=$1`,
@@ -402,6 +412,7 @@ if (error) throw error;
     });
 
   } catch (error) {
+    console.error(error);
     res.status(500).json({
       error: error.message
     });
