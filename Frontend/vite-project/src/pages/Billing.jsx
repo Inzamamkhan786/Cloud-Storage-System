@@ -13,6 +13,10 @@ function Billing() {
     const [billing, setBilling] = useState([]);
     const [totalCost, setTotalCost] = useState(0);
     const [loading, setLoading] = useState(true);
+    const [estimatedCost, setEstimatedCost] = useState(0);
+    const [billingMode, setBillingMode] = useState("FREE_TIER");
+    const [storageUsed, setStorageUsed] = useState(0);
+    
 
     const token = localStorage.getItem("token");
 
@@ -33,6 +37,8 @@ function Billing() {
 
     }, []);
 
+
+
     const fetchBilling = async () => {
 
         try {
@@ -45,6 +51,9 @@ function Billing() {
 
             setBilling(res.data.billing);
             setTotalCost(res.data.total_cost);
+            setEstimatedCost(res.data.estimated_cost);
+            setBillingMode(res.data.billing_mode);
+            setStorageUsed(res.data.storage_used_gb);
 
         } catch (error) {
 
@@ -156,18 +165,37 @@ function Billing() {
                 </div>
 
 
+                {/* Billing Summary Cards */}
 
-                {/* Total Cost Card */}
+                <div className="grid md:grid-cols-3 gap-6 mb-10">
 
-                <div className={darkMode ?
-                    "bg-[#393E46] p-6 rounded-xl shadow-lg mb-10 flex items-center justify-between"
-                    :
-                    "bg-white p-6 rounded-xl shadow-lg mb-10 flex items-center justify-between"}>
+                    {/* Estimated Cost */}
 
-                    <div>
+                    <div className={darkMode ?
+                        "bg-[#393E46] p-6 rounded-xl shadow-lg"
+                        :
+                        "bg-white p-6 rounded-xl shadow-lg"}>
 
                         <p className="text-sm text-gray-400">
-                            Total Usage Cost
+                            Estimated Cost
+                        </p>
+
+                        <h2 className="text-3xl font-bold text-yellow-500">
+                            ₹ {estimatedCost}
+                        </h2>
+
+                    </div>
+
+
+                    {/* Actual Cost */}
+
+                    <div className={darkMode ?
+                        "bg-[#393E46] p-6 rounded-xl shadow-lg"
+                        :
+                        "bg-white p-6 rounded-xl shadow-lg"}>
+
+                        <p className="text-sm text-gray-400">
+                            Actual Cost
                         </p>
 
                         <h2 className="text-3xl font-bold text-[#00ADB5]">
@@ -176,9 +204,34 @@ function Billing() {
 
                     </div>
 
-                    <FaFileInvoiceDollar className="text-4xl text-[#00ADB5]" />
+
+                    {/* Billing Mode */}
+
+                    <div className={darkMode ?
+                        "bg-[#393E46] p-6 rounded-xl shadow-lg"
+                        :
+                        "bg-white p-6 rounded-xl shadow-lg"}>
+
+                        <p className="text-sm text-gray-400">
+                            Billing Mode
+                        </p>
+
+                        <h2 className="text-3xl font-bold text-green-500">
+                            {billingMode}
+                        </h2>
+
+                    </div>
 
                 </div>
+
+
+                {/* Free Tier Notice */}
+
+                {billingMode === "FREE_TIER" && (
+                    <div className="mb-6 text-sm text-gray-500">
+                        You are currently under Free Tier (5GB). Billing starts after exceeding the limit.
+                    </div>
+                )}
 
 
 
